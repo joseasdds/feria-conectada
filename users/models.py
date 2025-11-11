@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from .managers import UserManager
+from .models_profiles import FerianteProfile, ClienteProfile, RepartidorProfile
 
 class Role(models.Model):
     """Rol del sistema (Feriante, Cliente, Repartidor, Admin)."""

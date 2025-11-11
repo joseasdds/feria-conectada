@@ -20,7 +20,7 @@ load_dotenv(BASE_DIR / ".env")
 # ----------------------------------
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
-    "django-insecure-2s0_91-*8idoq#hzpl4o9!x5#%8t0v$q=lrg6dm(fhvw01qrnw"  # TODO: Cambiar en producción
+    "django-insecure-2s0_91-*8idoq#hzpl4o9!x5#%8t0v$q=lrg6dm(fhvw01qrnw"  # TODO: cambiar en producción
 )
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
@@ -44,11 +44,11 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "djoser",
     "corsheaders",
-    "drf_spectacular",  # <- añade soporte OpenAPI 3.0
+    "drf_spectacular",  # Documentación OpenAPI 3.0
 
     # Apps locales (Dominios DDD)
     "core",
-    "users",
+    "users.apps.UsersConfig",  # Ruta completa corregida
     "market",
     "orders",
     "delivery",
@@ -58,7 +58,7 @@ INSTALLED_APPS = [
 # Middleware
 # ----------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # debe ir arriba
+    "corsheaders.middleware.CorsMiddleware",  # Debe ir arriba
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -118,22 +118,19 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = "users.User"
 
 # ----------------------------------
-# D. Django REST Framework + JWT (CORRECCIÓN DE PERMISOS)
+# D. Django REST Framework + JWT
 # ----------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        # IMPORTANTE: Tupla de cadenas para evitar errores de tipo
-        ("rest_framework.permissions.AllowAny",)
-        if DEBUG
-        else ("rest_framework.permissions.IsAuthenticated",)
-    ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny" if DEBUG else "rest_framework.permissions.IsAuthenticated",
+    ],
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework.renderers.JSONRenderer",
     ),
-    # Para OpenAPI
+    # Documentación OpenAPI
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -147,7 +144,7 @@ DJOSER = {
     "USER_ID_FIELD": "id",
     "LOGIN_FIELD": "email",
     "USER_CREATE_PASSWORD_RETYPE": False,
-    "SERIALIZERS": {},  # se personalizará luego
+    "SERIALIZERS": {},
     "PERMISSIONS": {
         "user_list": ["rest_framework.permissions.IsAdminUser"],
         "user": ["rest_framework.permissions.IsAuthenticated"],
@@ -178,19 +175,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ----------------------------------
 # Configuración de CORS
 # ----------------------------------
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:19006"
-).split(",")]
-
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://localhost:19006"
+    ).split(",")
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # ----------------------------------
-# Configuración de correo (placeholder)
+# Configuración de correo (modo desarrollo)
 # ----------------------------------
-# CAMBIO: Usamos el backend de consola para desarrollo (Punto 9).
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = True
@@ -199,16 +195,31 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = "Feria Conectada <no-reply@feriaconectada.com>"
 
 # ----------------------------------
-# Logging estructurado (base)
+# Logging estructurado (base unificada)
 # ----------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "{levelname} {asctime} [{name}] {message}", "style": "{"},
+        "verbose": {
+            "format": "{levelname} {asctime} [{name}] {message}",
+            "style": "{",
+        },
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
     },
-    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        # Log para app 'users'
+        "users": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Root logger
+        "": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    },
 }
