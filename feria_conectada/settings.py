@@ -118,14 +118,14 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = "users.User"
 
 # ----------------------------------
-# D. Django REST Framework + JWT (CORRECCIÓN APLICADA AQUÍ)
+# D. Django REST Framework + JWT (CORRECCIÓN DE PERMISOS)
 # ----------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        # IMPORTANTE: Se fuerza a ser una tupla de 1 elemento usando la coma (,)
+        # IMPORTANTE: Tupla de cadenas para evitar errores de tipo
         ("rest_framework.permissions.AllowAny",)
         if DEBUG
         else ("rest_framework.permissions.IsAuthenticated",)
@@ -188,7 +188,9 @@ CORS_ALLOW_CREDENTIALS = True
 # ----------------------------------
 # Configuración de correo (placeholder)
 # ----------------------------------
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# CAMBIO: Usamos el backend de consola para desarrollo (Punto 9).
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = True
