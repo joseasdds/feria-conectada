@@ -3,6 +3,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from core.views import health, ready
 
 urlpatterns = [
     # Panel de administración de Django
@@ -14,8 +15,12 @@ urlpatterns = [
     path("api/v1/core/", include("core.urls")),
     path("api/v1/auth/", include("djoser.urls")),
     path("api/v1/auth/", include("djoser.urls.jwt")),
-    path("api/v1/", include("users.urls")),  # Rutas del módulo users (usuarios y roles)
+    path("api/v1/", include("users.urls")), 
+    path("health/", health, name="health"),
+    path("ready/", ready, name="ready"), 
 ]
+
+
 
 # -------------------------------
 # Documentación de la API (Swagger + OpenAPI)
