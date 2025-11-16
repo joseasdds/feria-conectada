@@ -1,10 +1,16 @@
 # orders/urls.py
-from rest_framework.routers import DefaultRouter
-from .views import OrderViewSet, FerianteOrdersViewSet, RepartidorOrderViewSet
+from django.urls import path, include
+from rest_framework import routers
 
-router = DefaultRouter()
+from .views import OrderViewSet, FerianteOrdersViewSet, RepartidorOrderViewSet
+from .views_webhooks import payment_webhook
+
+router = routers.DefaultRouter()
 router.register(r'orders', OrderViewSet, basename='orders')
 router.register(r'feriante/orders', FerianteOrdersViewSet, basename='feriante-orders')
 router.register(r'repartidor/orders', RepartidorOrderViewSet, basename='repartidor-orders')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+    path('payments/webhook/', payment_webhook, name='payments-webhook'),
+]
