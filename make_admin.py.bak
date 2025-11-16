@@ -1,0 +1,34 @@
+# make_admin.py
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+email = "iaporquesi5@gmail.com"
+new_password = "Admin1."
+full_name = "Admin Recuperado"
+
+print("User model:", User)
+print("USERNAME_FIELD:", getattr(User, "USERNAME_FIELD", None))
+print("REQUIRED_FIELDS:", getattr(User, "REQUIRED_FIELDS", None))
+
+# Crear usuario (sin username, solo email)
+u = User.objects.create_user(email=email, password=new_password)
+print("Usuario creado:", u, "pk:", u.pk)
+
+# Forzar flags de admin
+u.is_active = True
+u.is_staff = True
+u.is_superuser = True
+if hasattr(u, "full_name"):
+    try:
+        u.full_name = full_name
+    except Exception:
+        pass
+u.save()
+
+print("=== Resultado final ===")
+print("id:", u.pk)
+print("email:", getattr(u, "email", None))
+print("is_active:", getattr(u, "is_active", None))
+print("is_staff:", getattr(u, "is_staff", None))
+print("is_superuser:", getattr(u, "is_superuser", None))
+print("check_password:", u.check_password(new_password))

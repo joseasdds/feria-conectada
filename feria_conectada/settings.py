@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'django_filters',
 
     # Third-party apps
     "rest_framework",
@@ -52,6 +53,8 @@ INSTALLED_APPS = [
     "market",
     "orders",
     "delivery",
+    
+    
 ]
 
 # ----------------------------------
@@ -95,13 +98,15 @@ WSGI_APPLICATION = "feria_conectada.wsgi.application"
 # B. Base de Datos (dj_database_url + PostgreSQL)
 # ----------------------------------
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-        conn_max_age=600,
-        ssl_require=not DEBUG,
-    )
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "feria_conectada",  # o el nombre de tu DB
+        "USER": "postgres",
+        "PASSWORD": "admin",
+        "HOST": "localhost",
+        "PORT": "5432",
+    }
 }
-
 # ----------------------------------
 # Validación de contraseñas
 # ----------------------------------
@@ -132,6 +137,7 @@ REST_FRAMEWORK = {
     ),
     # Documentación OpenAPI
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
 
 SIMPLE_JWT = {
@@ -223,3 +229,6 @@ LOGGING = {
         },
     },
 }
+
+# --- Configuración de la Aplicación y Versión ---
+APP_VERSION_TAG = "v0.2-UsersProfiles"

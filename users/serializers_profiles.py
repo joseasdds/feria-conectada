@@ -2,7 +2,10 @@
 import re
 import uuid
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models_profiles import FerianteProfile, ClienteProfile, RepartidorProfile
+
+User = get_user_model()
 
 
 # ========================================
@@ -188,6 +191,7 @@ class ClienteProfileSerializer(serializers.ModelSerializer):
             'user',
             'direccion_entrega',
             'telefono',
+            'historial_compras',
             'created_at',
             'updated_at',
             'deleted_at',
@@ -220,6 +224,7 @@ class ClienteProfileSerializer(serializers.ModelSerializer):
             representation["user"] = str(representation["user"])
         return representation
 
+
 class RepartidorProfileSerializer(serializers.ModelSerializer):
     """
     Serializer para el perfil de Repartidor (logística).
@@ -248,6 +253,7 @@ class RepartidorProfileSerializer(serializers.ModelSerializer):
             'user',
             'vehiculo',
             'licencia',
+            'zona_cobertura',
             'telefono',
             'created_at',
             'updated_at',
@@ -282,4 +288,71 @@ class RepartidorProfileSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         if isinstance(representation.get("user"), uuid.UUID):
             representation["user"] = str(representation["user"])
+        return representation
+
+
+# ========================================
+# 🔸 SERIALIZER MAESTRO PARA /me/
+# ========================================
+
+class MeSerializer(serializers.ModelSerializer):
+    """
+    Serializer maestro para el endpoint /api/v1/me/
+    Devuelve datos del User + perfil asociado según el rol.
+    Solo devuelve el perfil que corresponde al rol del usuario.
+    """
+    
+    # Perfiles anidados (read_only porque se gestionan por separado)
+    ferianteprofile = FerianteProfileSerializer(read_only=True)
+    clienteprofile = ClienteProfileSerializer(read_only=True)
+    repartidorprofile = RepartidorProfileSerializer(read_only=True)
+    
+    # Campo adicional para mostrar el nombre del rol
+    role_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'full_name',
+            'phone',
+            'role',
+            'role_name',
+            'is_active',
+            'created_at',
+            'updated_at',
+            # Perfiles anidados
+            'ferianteprofile',
+            'clienteprofile',
+            'repartidorprofile',
+        ]
+        read_only_fields = ['id', 'email', 'role', 'created_at', 'updated_at']
+
+    def get_role_name(self, obj):
+        """Devuelve el nombre del rol del usuario."""
+        return obj.role.name if obj.role else None
+
+    def to_representation(self, instance):
+        """
+        Personaliza la representación para:
+        1. Convertir UUIDs a strings
+        2. Solo mostrar el perfil correspondiente al rol del usuario
+        """
+        representation = super().to_representation(instance)
+        
+        # Convertir UUID a string
+        if isinstance(representation.get("id"), uuid.UUID):
+            representation["id"] = str(representation["id"])
+        
+        # Solo mantener el perfil que corresponde al rol
+        role_name = instance.role.name.upper() if instance.role else ""
+        
+        if role_name != "FERIANTE":
+            representation.pop('ferianteprofile', None)
+        if role_name != "CLIENTE":
+            representation.pop('clienteprofile', None)
+        if role_name != "REPARTIDOR":
+            representation.pop('repartidorprofile', None)
+        
         return representation
