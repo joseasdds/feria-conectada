@@ -1,9 +1,11 @@
-from django.http import JsonResponse
-from django.db import connection
-from django.utils.timezone import now
 import os
 
+from django.db import connection
+from django.http import JsonResponse
+from django.utils.timezone import now
+
 SERVICE_NAME = "feria-conectada"
+
 
 def _db_ok() -> bool:
     try:
@@ -13,6 +15,7 @@ def _db_ok() -> bool:
         return True
     except Exception:
         return False
+
 
 def health(request):
     # Liveness: responde si el proceso está vivo
@@ -25,6 +28,7 @@ def health(request):
         "time": now().isoformat(),
     }
     return JsonResponse(data, status=200)
+
 
 def ready(request):
     # Readiness: verifica dependencias críticas (DB)

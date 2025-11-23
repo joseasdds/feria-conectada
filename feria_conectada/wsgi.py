@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'feria_conectada.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "feria_conectada.settings")
 
 application = get_wsgi_application()

@@ -1,12 +1,16 @@
 import uuid
-from django.db import models
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.db import models
 from django.utils import timezone
+
 from .managers import UserManager
-from .models_profiles import FerianteProfile, ClienteProfile, RepartidorProfile
+from .models_profiles import ClienteProfile, FerianteProfile, RepartidorProfile
+
 
 class Role(models.Model):
     """Rol del sistema (Feriante, Cliente, Repartidor, Admin)."""
+
     ROLE_CHOICES = [
         ("ADMIN", "Administrador"),
         ("FERIANTE", "Feriante"),
@@ -23,6 +27,7 @@ class Role(models.Model):
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Modelo base de usuario con roles y campos personalizados."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=150)
@@ -52,3 +57,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_role_display(self):
         return self.role.get_name_display() if self.role else "Sin rol"
+
+
+class BaseProfile(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="%(class)s_profile"
+    )

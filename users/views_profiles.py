@@ -1,11 +1,10 @@
 # users/views_profiles.py
 from rest_framework import generics, permissions, response, status
-from .models_profiles import FerianteProfile, ClienteProfile, RepartidorProfile
-from .serializers_profiles import (
-    FerianteProfileSerializer,
-    ClienteProfileSerializer,
-    RepartidorProfileSerializer,
-)
+
+from .models_profiles import ClienteProfile, FerianteProfile, RepartidorProfile
+from .serializers_profiles import (ClienteProfileSerializer,
+                                   FerianteProfileSerializer,
+                                   RepartidorProfileSerializer)
 
 
 class MeProfileView(generics.RetrieveUpdateAPIView):
@@ -21,6 +20,7 @@ class MeProfileView(generics.RetrieveUpdateAPIView):
       GET   → obtener perfil autenticado
       PATCH → actualizar parcialmente su perfil
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):

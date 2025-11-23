@@ -1,0 +1,17 @@
+# Directorios de Python y logs
+.venv/
+__pycache__/
+*.pyc
+*.log
+*.sqlite3
+
+# Entorno
+.env
+.DS_Store
+
+# Cobertura y test
+htmlcov/
+.coverage
+
+# Archivos de la nube
+aws/

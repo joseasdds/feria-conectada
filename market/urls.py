@@ -1,6 +1,6 @@
-
 from rest_framework.routers import DefaultRouter
-from market.views import FeriaViewSet, PuestoViewSet, ProductoViewSet
+
+from market.views import FeriaViewSet, ProductoViewSet, PuestoViewSet
 
 router = DefaultRouter()
 router.register(r"ferias", FeriaViewSet, basename="feria")

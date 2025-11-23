@@ -1,11 +1,12 @@
 # market/views.py
 
-from rest_framework import viewsets, filters
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
 
-from market.models import Feria, Puesto, Producto
-from market.serializers import FeriaSerializer, PuestoSerializer, ProductoSerializer
+from market.models import Feria, Producto, Puesto
+from market.serializers import (FeriaSerializer, ProductoSerializer,
+                                PuestoSerializer)
 from users.permissions import IsFeriante, IsOwnerOrReadOnly
 
 
@@ -14,6 +15,7 @@ class FeriaViewSet(viewsets.ReadOnlyModelViewSet):
     Vista de solo lectura para Ferias.
     Cualquiera puede ver ferias activas.
     """
+
     queryset = Feria.objects.filter(activa=True)
     serializer_class = FeriaSerializer
     permission_classes = [AllowAny]
@@ -28,6 +30,7 @@ class PuestoViewSet(viewsets.ModelViewSet):
     - GET: cualquiera puede ver puestos activos.
     - POST/PUT/PATCH/DELETE: solo feriante autenticado y dueño del puesto.
     """
+
     queryset = Puesto.objects.filter(activo=True)
     serializer_class = PuestoSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -48,9 +51,8 @@ class PuestoViewSet(viewsets.ModelViewSet):
         serializer.save(feriante=self.request.user)
 
 
-
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.filter(activo=True).select_related('puesto')
+    queryset = Producto.objects.filter(activo=True).select_related("puesto")
     serializer_class = ProductoSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["puesto", "activo"]
@@ -65,10 +67,13 @@ class ProductoViewSet(viewsets.ModelViewSet):
         """
         Asegura que solo el dueño del puesto pueda crear productos en él.
         """
-        puesto = serializer.validated_data['puesto']
+        puesto = serializer.validated_data["puesto"]
         if puesto.feriante != self.request.user:
             # Lanzamos error 403 si el puesto no es del usuario autenticado
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("No puedes crear productos en un puesto que no es tuyo.")
+
+            raise PermissionDenied(
+                "No puedes crear productos en un puesto que no es tuyo."
+            )
 
         serializer.save()

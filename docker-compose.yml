@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: feria_conectada_web
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    container_name: feria_conectada_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: feria_conectada
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+
+  redis:
+    image: redis:7-alpine
+    container_name: feria_conectada_redis
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    container_name: feria_conectada_celery
+    command: celery -A core.celery:app worker --loglevel=info
+    volumes:
+      - .:/usr/src/app
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+volumes:
+  postgres_data:
