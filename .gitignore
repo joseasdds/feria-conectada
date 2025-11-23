@@ -43,3 +43,8 @@ docker-compose.prod.yml
 # Editor
 .vscode/
 .idea/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
