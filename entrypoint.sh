@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 
 # Salir inmediatamente si un comando falla, si se usa una variable no definida, 
 # o si falla cualquier comando en un pipe.
