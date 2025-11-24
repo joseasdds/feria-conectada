@@ -61,7 +61,7 @@ WORKDIR /usr/src/app
 
 # Copiar entrypoint y dar permisos de ejecución
 COPY entrypoint.sh /usr/src/app/entrypoint.sh
-RUN chmod +x /usr/src/app/entrypoint.sh
+RUN chmod +x /usr/src/app/entrypoint.sh # <--- LÍNEA AÑADIDA PARA PERMISOS DE EJECUCIÓN
 
 # Copiar el código de la aplicación
 COPY --chown=appuser:appgroup . .
@@ -70,7 +70,6 @@ COPY --chown=appuser:appgroup . .
 RUN chown -R appuser:appgroup $VIRTUAL_ENV /usr/src/app
 
 # Exponer puerto de la aplicación (solo informativo)
-# >>> CAMBIO: Exponiendo solo el puerto 8000
 EXPOSE 8000
 
 # Ejecutar como usuario no-root
@@ -80,5 +79,4 @@ USER appuser
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 
 # CMD: arrancar gunicorn en 0.0.0.0:8000
-# >>> CAMBIO CLAVE: Gunicorn bindea en 0.0.0.0:8000 y usa el módulo WSGI correcto.
 CMD ["gunicorn", "feria_conectada.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--log-level", "info"]
