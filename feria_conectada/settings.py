@@ -37,10 +37,17 @@ if DEBUG and not SECRET_KEY:
     print("WARNING: Using Django's insecure default SECRET_KEY for development.")
     SECRET_KEY = "django-insecure-2s0_91-*8idoq#hzpl4o9!x5#%8t0v$q=lrg6dm(fhvw01qrnw"
 
+# --- BLOQUE ALLOWED_HOSTS CORREGIDO Y SEGURO ---
 # OWASP: Protección contra ataques Host header
-ALLOWED_HOSTS = [
-    h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-]
+# Lee DJANGO_ALLOWED_HOSTS como lista separada por comas.
+# Ejemplo: "example.com,api.example.com"
+_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+if _hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _hosts.split(",") if h.strip()]
+else:
+    # keep safe defaults for local dev
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# --- FIN BLOQUE ALLOWED_HOSTS CORREGIDO Y SEGURO ---
 
 # ----------------------------------
 # Aplicaciones instaladas
@@ -125,7 +132,9 @@ DATABASES = {
 # ----------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+        "NAME": (
+            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+        )
     },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -155,7 +164,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     # Documentación OpenAPI (Criterio FASE 0)
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": ("drf_spectacular.openapi.AutoSchema"),
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
 }
 
@@ -188,11 +197,14 @@ DJOSER = {
 # ----------------------------------
 # E. DRF Spectacular (Documentación OpenAPI - Criterio FASE 0)
 # ----------------------------------
-APP_VERSION_TAG = "v0.2-UsersProfiles"  # Usamos la versión que definiste
+APP_VERSION_TAG = "v0.2-UsersProfiles"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Feria Conectada API",
-    "DESCRIPTION": "Documentación de la API para la plataforma de comercio (DDD: Users, Market, Orders, Delivery).",
+    "DESCRIPTION": (
+        "Documentación de la API para la plataforma de comercio "
+        "(DDD: Users, Market, Orders, Delivery)."
+    ),
     "VERSION": APP_VERSION_TAG,
     "SERVE_INCLUDE_SCHEMA": False,
     "SWAGGER_UI_DIST": "SIDECAR",
@@ -269,6 +281,7 @@ LOGGING = {
         "": {
             "handlers": ["console"],
             "level": "INFO",
+            "propagate": False,
         },
     },
 }
