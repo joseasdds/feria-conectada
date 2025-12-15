@@ -1,79 +1,96 @@
-# market/views.py
-
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework import filters, permissions, viewsets
 
-from market.models import Feria, Producto, Puesto
-from market.serializers import (FeriaSerializer, ProductoSerializer,
-                                PuestoSerializer)
-from users.permissions import IsFeriante, IsOwnerOrReadOnly
+from .models import Feria, Producto, Puesto
+from .serializers import FeriaSerializer, ProductoSerializer, PuestoSerializer
 
 
-class FeriaViewSet(viewsets.ReadOnlyModelViewSet):
+# ==========================
+# FERIAS
+# ==========================
+class FeriaViewSet(viewsets.ModelViewSet):
     """
-    Vista de solo lectura para Ferias.
-    Cualquiera puede ver ferias activas.
+    - Cualquiera puede VER ferias (GET)
+    - Solo usuarios autenticados pueden CREAR / EDITAR / ELIMINAR
     """
 
-    queryset = Feria.objects.filter(activa=True)
+    queryset = Feria.objects.all()
     serializer_class = FeriaSerializer
-    permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["comuna", "activa"]
-    search_fields = ["nombre", "comuna", "descripcion"]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["nombre", "activo"]
+    search_fields = ["nombre", "direccion"]
+    ordering_fields = ["created_at", "nombre"]
 
 
+# ==========================
+# PUESTOS
+# ==========================
 class PuestoViewSet(viewsets.ModelViewSet):
     """
-    CRUD de Puestos.
-    - GET: cualquiera puede ver puestos activos.
-    - POST/PUT/PATCH/DELETE: solo feriante autenticado y dueño del puesto.
+    - Cualquiera puede VER puestos (GET)
+    - Solo usuarios autenticados pueden CREAR / EDITAR / ELIMINAR
+    - El feriante se asigna automáticamente al crear el puesto
+    - Filtrable por feriante, feria, activo
     """
 
-    queryset = Puesto.objects.filter(activo=True)
+    queryset = Puesto.objects.all()
     serializer_class = PuestoSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["feria", "activo", "categoria"]
-    search_fields = ["nombre", "categoria"]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get_permissions(self):
-        # Lectura: cualquiera
-        if self.action in ["list", "retrieve"]:
-            return [AllowAny()]
-        # Escritura: auth + feriante + owner
-        return [IsAuthenticatedOrReadOnly(), IsFeriante(), IsOwnerOrReadOnly()]
+    # ✅ CLAVE: Habilitar filtros
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = [
+        "feriante",
+        "feria",
+        "activo",
+    ]  # 👈 Esto permite ?feriante=<user.id>
+    search_fields = ["nombre", "categoria"]
+    ordering_fields = ["created_at", "nombre"]
+
+    def get_queryset(self):
+        """
+        Devuelve todos los puestos.
+        El filtro por feriante se maneja automáticamente con filterset_fields.
+        """
+        return Puesto.objects.all()
 
     def perform_create(self, serializer):
         """
-        Al crear un puesto, asignar automáticamente al usuario autenticado como feriante.
+        Al crear un puesto:
+        - Se asigna automáticamente el usuario logueado como feriante
+        - Evita que el frontend tenga que mandar el feriante_id
         """
         serializer.save(feriante=self.request.user)
 
 
+# ==========================
+# PRODUCTOS
+# ==========================
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.filter(activo=True).select_related("puesto")
+    """
+    - Cualquiera puede VER productos (GET)
+    - Solo usuarios autenticados pueden CREAR / EDITAR / ELIMINAR
+    - Filtrable por puesto, activo
+    """
+
+    queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["puesto", "activo"]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["puesto", "activo"]  # 👈 Ya lo tienes, pero lo dejo explícito
     search_fields = ["nombre", "descripcion"]
-
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [AllowAny()]
-        return [IsAuthenticatedOrReadOnly(), IsFeriante(), IsOwnerOrReadOnly()]
-
-    def perform_create(self, serializer):
-        """
-        Asegura que solo el dueño del puesto pueda crear productos en él.
-        """
-        puesto = serializer.validated_data["puesto"]
-        if puesto.feriante != self.request.user:
-            # Lanzamos error 403 si el puesto no es del usuario autenticado
-            from rest_framework.exceptions import PermissionDenied
-
-            raise PermissionDenied(
-                "No puedes crear productos en un puesto que no es tuyo."
-            )
-
-        serializer.save()
+    ordering_fields = ["created_at", "precio", "nombre"]

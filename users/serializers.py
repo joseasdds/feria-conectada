@@ -1,66 +1,27 @@
-# users/serializers.py
-
 from django.apps import apps
 from rest_framework import serializers
 
-from .models import (  # Asegúrate de que todos los perfiles están aquí
-    ClienteProfile, FerianteProfile, RepartidorProfile, Role, User)
+from .models import Role, User
+# Importamos los perfiles corregidos del archivo anterior
+from .serializers_profiles import (ClienteProfileSerializer,
+                                   FerianteProfileSerializer,
+                                   RepartidorProfileSerializer)
 
-# --- 1. Serializers de Perfiles (para anidamiento en /me/) ---
-
-
-class ClienteProfileSerializer(serializers.ModelSerializer):
-    """Serializer para el perfil de Cliente."""
-
-    class Meta:
-        model = ClienteProfile
-        fields = (
-            "id",
-            "direccion_entrega",
-            "historial_compras",
-        )  # Ajusta estos campos si es necesario
-
-
-class FerianteProfileSerializer(serializers.ModelSerializer):
-    """Serializer para el perfil de Feriante."""
-
-    class Meta:
-        model = FerianteProfile
-        fields = (
-            "id",
-            "puesto",
-            "rut",
-            "direccion",
-            "telefono",
-        )  # Ajusta estos campos si es necesario
-
-
-class RepartidorProfileSerializer(serializers.ModelSerializer):
-    """Serializer para el perfil de Repartidor."""
-
-    class Meta:
-        model = RepartidorProfile
-        fields = ("id", "licencia", "vehiculo")  # Ajusta estos campos si es necesario
-
-
-# --- 2. Serializer de Roles ---
+# --- 1. Serializer de Roles ---
 
 
 class RoleSerializer(serializers.ModelSerializer):
-    """Serializer para el modelo Role (Lectura)."""
-
     class Meta:
         model = Role
         fields = ["id", "name"]
 
 
-# --- 3. Serializer de REGISTRO (Creación de Usuario) ---
+# --- 2. Serializer de REGISTRO ---
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    """Serializador para el registro público. Asigna 'cliente' por defecto."""
-
     full_name = serializers.CharField(max_length=255, required=True)
+    # El teléfono se guarda en el User, no en el Profile
     phone = serializers.CharField(max_length=20, required=False)
     role = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), required=False
@@ -77,7 +38,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         role = validated_data.pop("role", None)
         password = validated_data.pop("password", None)
 
-        # LÓGICA CLAVE: Asignar 'cliente' si el rol es nulo
         if role is None:
             RoleModel = apps.get_model("users", "Role")
             try:
@@ -91,20 +51,15 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user.role = role
         if password:
             user.set_password(password)
-
         user.save()
         return user
 
 
-# --- 4. Serializer de USUARIO (Lectura / Endpoint /me/) ---
+# --- 3. Serializer de USUARIO (/me/) ---
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer para el modelo User. Anida el objeto Role y el Profile."""
-
     role = RoleSerializer(read_only=True)
-
-    # Campo dinámico para devolver el perfil correcto (Cliente, Feriante, etc.)
     profile = serializers.SerializerMethodField()
 
     class Meta:
@@ -114,8 +69,8 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "full_name",
             "phone",
-            "role",  # Objeto Role anidado
-            "profile",  # Objeto de Perfil anidado
+            "role",
+            "profile",
             "is_active",
             "is_staff",
             "created_at",
@@ -124,10 +79,13 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "email", "created_at", "updated_at"]
 
     def get_profile(self, obj):
-        """Devuelve el serializer correcto para el perfil basado en el rol del usuario."""
-        role_name = obj.role.name.lower() if obj.role else None
+        """Devuelve el serializer correcto para el perfil basado en el rol."""
+        if not obj.role:
+            return None
 
-        # Mapeo y acceso a la relación OneToOne (atributo en minúsculas)
+        role_name = obj.role.name.lower()
+
+        # Aquí usamos los serializers corregidos que NO tienen el campo telefono
         if role_name == "cliente":
             return ClienteProfileSerializer(getattr(obj, "clienteprofile", None)).data
         elif role_name == "feriante":

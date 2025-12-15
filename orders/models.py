@@ -1,4 +1,3 @@
-# orders/models.py
 import uuid
 from decimal import Decimal
 
@@ -46,6 +45,14 @@ class Order(models.Model):
     )
 
     notas = models.TextField(blank=True, null=True)
+
+    # 👇 NUEVO CAMPO PARA EL MAPA
+    direccion_envio = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Dirección física para la entrega (usada en mapas).",
+    )
 
     repartidor = models.ForeignKey(
         settings.AUTH_USER_MODEL,

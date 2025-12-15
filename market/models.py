@@ -1,5 +1,7 @@
 import uuid
 
+# 1. IMPORTANTE: Importamos el campo de Cloudinary
+from cloudinary.models import CloudinaryField
 from django.conf import settings
 from django.db import models
 
@@ -13,9 +15,7 @@ class Feria(models.Model):
     dias = models.CharField(max_length=120, blank=True)  # ej: "Lun-Mie-Vie"
     horario = models.CharField(max_length=80, blank=True)  # ej: "09:00-18:00"
     activa = models.BooleanField(default=True)
-    created_at = models.DateTimeField(
-        auto_now_add=True, null=True, blank=True
-    )  # temporalmente opcional
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         ordering = ["comuna", "nombre"]
@@ -37,9 +37,7 @@ class Puesto(models.Model):
 
     class Meta:
         ordering = ["nombre"]
-        unique_together = [
-            ("feria", "nombre")
-        ]  # mismo nombre en misma feria no se repite
+        unique_together = [("feria", "nombre")]
 
     def __str__(self):
         return f"{self.nombre} - {self.feria.nombre}"
@@ -57,6 +55,11 @@ class Producto(models.Model):
     unidad = models.CharField(
         max_length=20, default="unidad"
     )  # unidad, kg, bandeja, etc.
+
+    # 2. NUEVO CAMPO DE IMAGEN 📸
+    # Esto guardará la URL de la foto en la base de datos y el archivo en Cloudinary
+    image = CloudinaryField("image", folder="productos", blank=True, null=True)
+
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

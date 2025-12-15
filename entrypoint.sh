@@ -11,7 +11,7 @@ COLLECT_STATIC="${COLLECT_STATIC:-false}"
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-60}"
 
 term_handler() {
-  echo "Recibida seÃ±al de terminaciÃ³n. Reenviando a procesos hijos..."
+  echo "Recibida señal de terminación. Reenviando a procesos hijos..."
   if [[ -n "${child_pid:-}" ]]; then
     kill -TERM "$child_pid" 2>/dev/null || true
     wait "$child_pid" || true
@@ -55,7 +55,7 @@ wait_for_host() {
   done
 }
 
-# Si DATABASE_URL estÃ¡ presente, extraer host:port
+# Si DATABASE_URL está presente, extraer host:port
 if [ -z "$DB_HOST" ] && [ -n "$DATABASE_URL" ]; then
   host_port="$(echo "$DATABASE_URL" | awk -F@ '{print $2}' | awk -F/ '{print $1}')"
   DB_HOST="$(echo "$host_port" | cut -d: -f1)"
@@ -66,7 +66,7 @@ DB_HOST="${DB_HOST:-db}"
 DB_PORT="${DB_PORT:-5432}"
 
 if ! wait_for_host "$DB_HOST" "$DB_PORT" "$WAIT_TIMEOUT"; then
-  echo "ERROR: La base de datos $DB_HOST:$DB_PORT no respondiÃ³. Abortando."
+  echo "ERROR: La base de datos $DB_HOST:$DB_PORT no respondió. Abortando."
   exit 1
 fi
 
@@ -78,7 +78,7 @@ if [ -n "$REDIS_URL" ]; then
   REDIS_PORT="${REDIS_PORT:-6379}"
 
   if ! wait_for_host "$REDIS_HOST" "$REDIS_PORT" "$WAIT_TIMEOUT"; then
-    echo "WARNING: Redis $REDIS_HOST:$REDIS_PORT no respondiÃ³ en ${WAIT_TIMEOUT}s. Continuando."
+    echo "WARNING: Redis $REDIS_HOST:$REDIS_PORT no respondió en ${WAIT_TIMEOUT}s. Continuando."
   fi
 fi
 
@@ -92,9 +92,19 @@ if [ "$COLLECT_STATIC" = "true" ] || [ "$COLLECT_STATIC" = "1" ]; then
   python manage.py collectstatic --noinput
 fi
 
-echo "Iniciando Gunicorn..."
-exec gunicorn "feria_conectada.wsgi:application" \
-  --bind 0.0.0.0:8000 \
-  --workers 3 \
-  --log-level info \
-  --timeout 120
+# -------------------------------------------------------------------
+# NUEVO BLOQUE FINAL (lo que pediste)
+# -------------------------------------------------------------------
+
+# Si se pasan argumentos al script (como 'python manage.py runserver' o 'celery'), ejéctalos
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+else
+    # Si no hay argumentos, por defecto lanza Gunicorn (Producción)
+    echo "Iniciando Gunicorn por defecto..."
+    exec gunicorn "feria_conectada.wsgi:application" \
+      --bind 0.0.0.0:8000 \
+      --workers 3 \
+      --log-level info \
+      --timeout 120
+fi

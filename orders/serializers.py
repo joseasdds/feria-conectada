@@ -1,12 +1,18 @@
 import logging
+from decimal import Decimal
 
 from django.db import transaction
 from rest_framework import serializers
 
 from market.models import Producto
-from orders.models import Order, OrderItem, Payment
+
+from .models import Order, OrderItem, Payment
 
 logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# SERIALIZERS DE LECTURA (Para mostrar datos al Frontend)
+# ==============================================================================
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -14,6 +20,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
     puesto_nombre = serializers.CharField(
         source="producto.puesto.nombre", read_only=True
     )
+    imagen = serializers.CharField(
+        source="producto.imagen", read_only=True
+    )  # Útil para el resumen visual
 
     class Meta:
         model = OrderItem
@@ -22,34 +31,25 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "producto",
             "producto_nombre",
             "puesto_nombre",
+            "imagen",
             "cantidad",
             "precio_unitario",
             "subtotal",
         ]
-        read_only_fields = ["id", "subtotal"]
-
-
-class OrderItemCreateSerializer(serializers.Serializer):
-    producto = serializers.UUIDField()
-    cantidad = serializers.IntegerField(min_value=1)
-
-    def validate_producto(self, value):
-        try:
-            Producto.objects.get(id=value, activo=True)
-        except Producto.DoesNotExist:
-            raise serializers.ValidationError("Producto no encontrado o inactivo.")
-        return value
+        read_only_fields = ["id", "subtotal", "precio_unitario"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     cliente_email = serializers.EmailField(source="cliente.email", read_only=True)
+    cliente_nombre = serializers.CharField(source="cliente.full_name", read_only=True)
 
     class Meta:
         model = Order
         fields = [
             "id",
             "cliente",
+            "cliente_nombre",
             "cliente_email",
             "estado",
             "total",
@@ -59,6 +59,16 @@ class OrderSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "cliente", "total", "created_at", "updated_at"]
+
+
+# ==============================================================================
+# SERIALIZERS DE ESCRITURA (Para crear/validar datos)
+# ==============================================================================
+
+
+class OrderItemCreateSerializer(serializers.Serializer):
+    producto = serializers.UUIDField()
+    cantidad = serializers.IntegerField(min_value=1)
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
@@ -79,50 +89,94 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop("items")
         cliente = self.context["request"].user
 
+        # -----------------------------------------------------------
+        # 1. EVITAR DEADLOCKS (BLOQUEOS MUTUOS)
+        # Ordenamos los items por ID de producto antes de iterar.
+        # Esto asegura que siempre se bloqueen las filas en el mismo orden.
+        # -----------------------------------------------------------
+        items_data.sort(key=lambda x: str(x["producto"]))
+
         with transaction.atomic():
-            # Crear la orden
+            # Crear la orden base
             order = Order.objects.create(
-                cliente=cliente, notas=validated_data.get("notas", ""), estado="CREADO"
+                cliente=cliente,
+                notas=validated_data.get("notas", ""),
+                estado="CREADO",
+                total=Decimal("0.00"),
             )
 
-            # Procesar ítems, stock y totales
-            for item_data in items_data:
-                producto = Producto.objects.select_for_update().get(
-                    id=item_data["producto"]
-                )
+            total_acumulado = Decimal("0.00")
 
-                # Verificar stock
-                if producto.stock < item_data["cantidad"]:
+            for idx, item_data in enumerate(items_data):
+                prod_id = item_data["producto"]
+                cantidad = int(item_data["cantidad"])
+
+                # -------------------------------------------------------
+                # 2. BLOQUEO DE FILA (SELECT_FOR_UPDATE)
+                # Evita condiciones de carrera (dos usuarios comprando el último stock)
+                # -------------------------------------------------------
+                try:
+                    producto = Producto.objects.select_for_update().get(
+                        id=prod_id, activo=True, puesto__activo=True
+                    )
+                except Producto.DoesNotExist:
                     raise serializers.ValidationError(
-                        f"Stock insuficiente para el producto: {producto.nombre}"
+                        {
+                            "items": [
+                                {
+                                    "producto": f"Producto {prod_id} no encontrado o inactivo.",
+                                    "index": idx,
+                                }
+                            ]
+                        }
+                    )
+
+                if producto.stock < cantidad:
+                    raise serializers.ValidationError(
+                        {
+                            "items": [
+                                {
+                                    "cantidad": f"Stock insuficiente para {producto.nombre}. Disponible: {producto.stock}",
+                                    "index": idx,
+                                }
+                            ]
+                        }
                     )
 
                 # Descontar stock
-                producto.stock -= item_data["cantidad"]
-                producto.save()
+                producto.stock -= cantidad
+                producto.save(update_fields=["stock"])
 
-                # Crear OrderItem
+                # Calcular montos
+                precio_unitario = producto.precio
+                subtotal = precio_unitario * Decimal(cantidad)
+
+                # Crear Item
                 OrderItem.objects.create(
                     order=order,
                     producto=producto,
-                    cantidad=item_data["cantidad"],
-                    precio_unitario=producto.precio,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    subtotal=subtotal,
                 )
+                total_acumulado += subtotal
 
-            # Recalcular total
-            order.calcular_total()
+            # Actualizar total final de la orden
+            order.total = total_acumulado
+            order.save(update_fields=["total"])
 
-            # Crear Payment vacío o inicial
-            Payment.objects.create(order=order, estado="pendiente", monto=order.total)
+            # Crear registro de pago inicial (Pendiente)
+            Payment.objects.create(
+                order=order, monto=total_acumulado, status="PENDIENTE"
+            )
 
-        # ============================
-        #   NUEVO: Tarea Celery async
-        # ============================
-        try:
-            from .tasks import send_order_confirmation_email
-
-            send_order_confirmation_email.delay(str(order.id))
-        except Exception as exc:
-            logger.error(f"Could not queue email task for Order {order.id}: {exc}")
+            # Intentar tarea asíncrona (Email) si existe
+            try:
+                # Importación local para evitar importaciones circulares
+                # from .tasks import send_order_confirmation_email
+                # send_order_confirmation_email.delay(str(order.id))
+                pass
+            except Exception as exc:
+                logger.error(f"Error enviando email para Order {order.id}: {exc}")
 
         return order

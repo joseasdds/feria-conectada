@@ -1,16 +1,15 @@
-# orders/urls.py
 from django.urls import include, path
 from rest_framework import routers
 
-from .views import FerianteOrdersViewSet, OrderViewSet, RepartidorOrderViewSet
+# Solo importamos OrderViewSet (la vista maestra) y el webhook
+from .views import OrderViewSet
 from .views_webhooks import payment_webhook
 
 router = routers.DefaultRouter()
+
+# Registramos SOLO la vista maestra.
+# Gracias a la refactorización, esta url maneja Clientes, Feriantes y Repartidores automáticamente.
 router.register(r"orders", OrderViewSet, basename="orders")
-router.register(r"feriante/orders", FerianteOrdersViewSet, basename="feriante-orders")
-router.register(
-    r"repartidor/orders", RepartidorOrderViewSet, basename="repartidor-orders"
-)
 
 urlpatterns = [
     path("", include(router.urls)),
